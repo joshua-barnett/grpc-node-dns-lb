@@ -1,0 +1,25 @@
+version: "3.9"
+
+services:
+  shell:
+    build: .
+    volumes:
+      - .:/srv
+      - node_modules:/srv/node_modules
+  server:
+    build: .
+    command: node . server
+    volumes:
+      - .:/srv
+      - node_modules:/srv/node_modules
+  client:
+    build: .
+    command: node . client
+    environment:
+      SERVER_ADDRESS: dns:///server:50051
+    volumes:
+      - .:/srv
+      - node_modules:/srv/node_modules
+
+volumes:
+  node_modules:

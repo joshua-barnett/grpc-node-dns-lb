@@ -1,0 +1,15 @@
+{
+  "name": "grpc-node-dns-lb",
+  "version": "1.0.0",
+  "description": "An example of DNS load balancing with gRPC",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "node ."
+  },
+  "keywords": [],
+  "author": "Joshua Barnett <joshua@barne.tt>",
+  "license": "WTFPL",
+  "dependencies": {
+    "grpc": "1.24.9"
+  }
+}
