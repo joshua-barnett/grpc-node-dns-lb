@@ -21,7 +21,9 @@ An example of DNS load balancing with gRPC.
 1. Run the test target.
 
     ```shell
-    make test
+    make test-auto-scaling
+
+    make test-retries
     ```
 
     The project will start with 1 replica, scale up to 3 over the course of 20 seconds.

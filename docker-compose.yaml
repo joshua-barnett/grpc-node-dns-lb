@@ -22,6 +22,7 @@ services:
       target: artifact
     command: node . client
     environment:
+      DELAY:
       SERVER_ADDRESS: dns:///server:50051
 
 volumes:
