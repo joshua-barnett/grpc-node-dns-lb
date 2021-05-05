@@ -35,8 +35,8 @@ class Server {
             {
                 Exec: async (call, callback) => {
                     this.received++;
-                    const { seq, delay } = call.request;
-                    console.log('Received request', {
+                    const { seq, delay, shutdown } = call.request;
+                    console.log({
                         seq,
                         hostname: process.env.HOSTNAME,
                         received: this.received
@@ -48,7 +48,10 @@ class Server {
                     } else if (typeof delay === 'number') {
                         await timeout(delay);
                     }
-                    return callback(null, { message: 'Hello Client!', seq });
+                    callback(null, { message: 'Hello Client!', seq });
+                    if (shutdown) {
+                        this.grpcServer.forceShutdown();
+                    }
                 }
             }
         )
