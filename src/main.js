@@ -12,7 +12,7 @@ const Command = {
 
 const path = '/com.demo.v1.LbDemoService/Exec';
 const serialize = value => Buffer.from(JSON.stringify(value), 'utf8');
-const deserialze = buffer => JSON.parse(buffer.toString());
+const deserialze = buffer => Buffer.isBuffer(buffer) ? JSON.parse(buffer.toString()) : null;
 
 const main = () => {
     switch (command) {
