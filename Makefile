@@ -11,7 +11,7 @@ command:
 if [ $${RUNNING} ]; then \
     $(DOCKER) exec --interactive --tty $(NAME) $(COMMAND); \
 else \
-    $(DOCKER_COMPOSE) run $(if $(RUN_DETACHED),--detach )--rm --name $(NAME) $(SERVICE) $(COMMAND); \
+    $(DOCKER_COMPOSE) run $(if $(RUN_DETACHED),--detach )--rm --service-ports --name $(NAME) $(SERVICE) $(COMMAND); \
 fi
 
 .PHONY: shell
