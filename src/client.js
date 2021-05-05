@@ -1,9 +1,11 @@
-const process = require('process');
 const { promisify } = require('util');
-const { setTimeout } = require('timers');
+const { setTimeout, setInterval } = require('timers');
 const grpc = require('grpc');
+const process = require('process');
 
 const timeout = promisify(setTimeout);
+const randomBoundedInt = (min, max) => Math.floor(Math.random() * max) + min;
+const randomDelay = () => timeout(randomBoundedInt(1, 10));
 
 class Client {
     constructor(
@@ -14,6 +16,7 @@ class Client {
         this.path = path;
         this.serialize = serialize;
         this.deserialze = deserialze;
+        this.retryLimit = 1;
         this.grpcClient = new grpc.Client(
             process.env.SERVER_ADDRESS || 'dns:///localhost:50051',
             grpc.credentials.createInsecure(), {
@@ -25,25 +28,46 @@ class Client {
                 })
             }
         );
+        this.waitForReady = promisify((...args) => this.grpcClient.waitForReady(...args));
+        this.makeUnaryRequest = promisify((...args) => this.grpcClient.makeUnaryRequest(...args));
     }
-    async run(repeat = 10000, delay = 1000) {
-        const waitForReady = promisify((...args) => this.grpcClient.waitForReady(...args));
-        const makeUnaryRequest = promisify((...args) => this.grpcClient.makeUnaryRequest(...args));
-        await waitForReady(Infinity);
-        for (let seq = 0; seq < repeat; seq++) {
-            try {
-                const response = await makeUnaryRequest(
-                    this.path,
-                    this.serialize,
-                    this.deserialze, {
-                        seq
-                    }
-                );
-                // console.log(response);
-            } catch (error) {
-                console.log(error);
+    isRetryableError(error) {
+        switch (error.code) {
+            case grpc.status.UNAVAILABLE:
+                return true;
+            default:
+                return false;
+        }
+    }
+    async exec(body = {}, retries = 0) {
+        try {
+            const response = await this.makeUnaryRequest(
+                this.path,
+                this.serialize,
+                this.deserialze,
+                body
+            );
+            return response;
+        } catch (error) {
+            console.error(error);
+            if (this.isRetryableError(error) && retries < this.retryLimit) {
+                return this.exec(body, retries++);
             }
-            await timeout(delay);
+            throw error;
+        }
+    }
+    async run(repeat = 10000, delay = false) {
+        await this.waitForReady(Infinity);
+        for (let seq = 0; seq < repeat; seq++) {
+            const response = await this.exec({ seq, delay });
+            console.log(response);
+            if (typeof delay === 'boolean') {
+                if (delay) {
+                    await randomDelay();
+                }
+            } else if (typeof delay === 'number') {
+                await timeout(delay);
+            }
         }
     }
 }

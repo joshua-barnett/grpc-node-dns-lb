@@ -1,6 +1,11 @@
 const { promisify } = require('util');
-const process = require('process');
+const { setTimeout } = require('timers');
 const grpc = require('grpc');
+const process = require('process');
+
+const timeout = promisify(setTimeout);
+const randomBoundedInt = (min, max) => Math.floor(Math.random() * max) + min;
+const randomDelay = () => timeout(randomBoundedInt(200, 500));
 
 class Server {
     constructor(
@@ -9,7 +14,7 @@ class Server {
         deserialze
     ) {
         this.grpcServer = new grpc.Server({
-            'grpc.max_connection_age_ms': 2000 // 2 seconds
+            'grpc.max_connection_age_ms': 1000
         });
         this.received = 0;
         this.grpcServer.addService(
@@ -23,14 +28,22 @@ class Server {
                 }
             },
             {
-                Exec: (call, callback) => {
+                Exec: async (call, callback) => {
                     this.received++;
+                    const { seq, delay } = call.request;
                     console.log('Received request', {
-                        seq: call.request.seq,
+                        seq,
                         hostname: process.env.HOSTNAME,
                         received: this.received
                     });
-                    return callback(null, { message: 'Hello Client!' });
+                    if (typeof delay === 'boolean') {
+                        if (delay) {
+                            await randomDelay();
+                        }
+                    } else if (typeof delay === 'number') {
+                        await timeout(delay);
+                    }
+                    return callback(null, { message: 'Hello Client!', seq });
                 }
             }
         )
