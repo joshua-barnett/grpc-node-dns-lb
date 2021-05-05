@@ -1,8 +1,9 @@
 const { promisify } = require('util');
-const { setTimeout, setInterval } = require('timers');
+const { setTimeout } = require('timers');
 const grpc = require('grpc');
 const process = require('process');
 
+const DELAY = process.env.DELAY !== '0';
 const REPEAT = 10000;
 const MAX_RANDOM_DELAY = 10;
 const MIN_RANDOM_DELAY = 1;
@@ -62,10 +63,11 @@ class Client {
             throw error;
         }
     }
-    async run(repeat = 10000 , delay = true) {
+    async run(repeat = REPEAT , delay = DELAY) {
         await this.waitForReady(Infinity);
         for (let seq = 0; seq < repeat; seq++) {
-            const response = await this.exec({ seq, delay });
+            const shutdown = seq === repeat - 1;
+            const response = await this.exec({ seq, delay, shutdown });
             console.log(response);
             if (typeof delay === 'boolean') {
                 if (delay) {
