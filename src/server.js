@@ -3,9 +3,14 @@ const { setTimeout } = require('timers');
 const grpc = require('grpc');
 const process = require('process');
 
+const MAX_CONNECTION_AGE = 1000;
+const MAX_RANDOM_DELAY = 500;
+const MIN_RANDOM_DELAY = 500;
+const SERVER_ADDRESS = `0.0.0.0:${process.env.SERVER_PORT || 50051}`;
+
 const timeout = promisify(setTimeout);
 const randomBoundedInt = (min, max) => Math.floor(Math.random() * max) + min;
-const randomDelay = () => timeout(randomBoundedInt(200, 500));
+const randomDelay = () => timeout(randomBoundedInt(MIN_RANDOM_DELAY, MAX_RANDOM_DELAY));
 
 class Server {
     constructor(
@@ -14,7 +19,7 @@ class Server {
         deserialze
     ) {
         this.grpcServer = new grpc.Server({
-            'grpc.max_connection_age_ms': 1000
+            'grpc.max_connection_age_ms': MAX_CONNECTION_AGE
         });
         this.received = 0;
         this.grpcServer.addService(
@@ -48,9 +53,9 @@ class Server {
             }
         )
     }
-    async run(port = `0.0.0.0:${process.env.SERVER_PORT || 50051}`) {
+    async run() {
         const grpcServerBind = promisify((...args) => this.grpcServer.bindAsync(...args));
-        await grpcServerBind(port, grpc.ServerCredentials.createInsecure());
+        await grpcServerBind(SERVER_ADDRESS, grpc.ServerCredentials.createInsecure());
         this.grpcServer.start();
     }
 }
