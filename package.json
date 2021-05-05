@@ -4,7 +4,11 @@
   "description": "An example of DNS load balancing with gRPC",
   "main": "src/main.js",
   "scripts": {
-    "start": "node ."
+    "start": "node .",
+    "start:server": "node . server",
+    "start:client": "node . client",
+    "debug:server": "node --inspect-brk=0.0.0.0:9229 . server",
+    "debug:client": "node --inspect-brk=0.0.0.0:9230 . client"
   },
   "keywords": [],
   "author": "Joshua Barnett <joshua@barne.tt>",

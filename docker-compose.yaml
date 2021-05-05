@@ -6,12 +6,17 @@ services:
     volumes:
       - .:/srv
       - node_modules:/srv/node_modules
+    ports:
+      - 9229:9229
+      - 9230:9230
   server:
     build: .
     command: node . server
     volumes:
       - .:/srv
       - node_modules:/srv/node_modules
+    ports:
+      - 9229:9229
   client:
     build: .
     command: node . client
@@ -20,6 +25,8 @@ services:
     volumes:
       - .:/srv
       - node_modules:/srv/node_modules
+    ports:
+      - 9230:9230
 
 volumes:
   node_modules:
