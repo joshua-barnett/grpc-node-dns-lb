@@ -22,6 +22,7 @@ class Server {
             'grpc.max_connection_age_ms': MAX_CONNECTION_AGE
         });
         this.received = 0;
+        this.lastSeq = -1;
         this.grpcServer.addService(
             {
                 Exec: {
@@ -41,6 +42,13 @@ class Server {
                         hostname: process.env.HOSTNAME,
                         received: this.received
                     });
+                    if (seq <= this.lastSeq) {
+                        console.error('Repeated request', {
+                            seq,
+                            lastSeq: this.lastSeq
+                        });
+                        return process.exit(1);
+                    }
                     if (typeof delay === 'boolean') {
                         if (delay) {
                             await randomDelay();
@@ -49,6 +57,7 @@ class Server {
                         await timeout(delay);
                     }
                     callback(null, { message: 'Hello Client!', seq });
+                    this.lastSeq = seq;
                     if (shutdown) {
                         this.grpcServer.forceShutdown();
                     }
