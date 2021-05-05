@@ -39,8 +39,8 @@ class Client {
         this.makeUnaryRequest = promisify((...args) => this.grpcClient.makeUnaryRequest(...args));
     }
     isRetryableError(error) {
-        switch (error.code) {
-            case grpc.status.UNAVAILABLE:
+        switch (true) {
+            case error.code === grpc.status.UNAVAILABLE && error.details === 'GOAWAY received':
                 return true;
             default:
                 return false;
