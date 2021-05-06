@@ -37,11 +37,7 @@ class Server {
                 Exec: async (call, callback) => {
                     this.received++;
                     const { seq, delay, shutdown } = call.request;
-                    console.log({
-                        seq,
-                        hostname: process.env.HOSTNAME,
-                        received: this.received
-                    });
+                    console.log(`${seq}: Received request`);
                     if (seq <= this.lastSeq) {
                         console.error('Repeated request', {
                             seq,
@@ -56,7 +52,8 @@ class Server {
                     } else if (typeof delay === 'number') {
                         await timeout(delay);
                     }
-                    callback(null, { message: 'Hello Client!', seq });
+                    console.log(`${seq}: Sending response`);
+                    callback(null, { seq });
                     this.lastSeq = seq;
                     if (shutdown) {
                         this.grpcServer.forceShutdown();

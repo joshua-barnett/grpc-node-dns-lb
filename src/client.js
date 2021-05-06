@@ -48,15 +48,19 @@ class Client {
     }
     async exec(body = {}, retries = 0) {
         try {
+            const { seq } = body;
+            console.log(`${seq}: Sending request`);
             const response = await this.makeUnaryRequest(
                 this.path,
                 this.serialize,
                 this.deserialze,
                 body
             );
+            console.log(`${seq}: Received response`);
             return response;
         } catch (error) {
-            console.error(error);
+            const { seq } = body;
+            console.error(`${seq}: ${error.message}`);
             if (this.isRetryableError(error) && retries < this.retryLimit) {
                 return this.exec(body, retries++);
             }
@@ -67,8 +71,7 @@ class Client {
         await this.waitForReady(Infinity);
         for (let seq = 0; seq < repeat; seq++) {
             const shutdown = seq === repeat - 1;
-            const response = await this.exec({ seq, delay, shutdown });
-            console.log(response);
+            await this.exec({ seq, delay, shutdown });
             if (typeof delay === 'boolean') {
                 if (delay) {
                     await randomDelay();
