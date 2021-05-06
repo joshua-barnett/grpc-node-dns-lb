@@ -15,6 +15,8 @@ const randomBoundedInt = (min, max) => Math.floor(Math.random() * max) + min
 const randomDelay = () =>
   timeout(randomBoundedInt(MIN_RANDOM_DELAY, MAX_RANDOM_DELAY))
 
+const GOAWAY_RECEIVED_DETAILS = 'GOAWAY received';
+
 class Client {
   constructor (path, serialize, deserialze) {
     this.path = path
@@ -45,7 +47,7 @@ class Client {
   isRetryableError (error) {
     switch (true) {
       case error.code === grpc.status.UNAVAILABLE &&
-        error.details === 'GOAWAY received':
+        error.details === GOAWAY_RECEIVED_DETAILS:
         return true
       default:
         return false
