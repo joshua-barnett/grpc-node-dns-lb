@@ -8,12 +8,16 @@
     "start:server": "node . server",
     "start:client": "node . client",
     "debug:server": "node --inspect-brk=0.0.0.0:9229 . server",
-    "debug:client": "node --inspect-brk=0.0.0.0:9230 . client"
+    "debug:client": "node --inspect-brk=0.0.0.0:9230 . client",
+    "format": "prettier-standard --format"
   },
   "keywords": [],
   "author": "Joshua Barnett <joshua@barne.tt>",
   "license": "WTFPL",
   "dependencies": {
     "grpc": "1.24.9"
+  },
+  "devDependencies": {
+    "prettier-standard": "16.4.1"
   }
 }

@@ -1,31 +1,27 @@
 {
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "address": "localhost",
-            "localRoot": "${workspaceFolder}",
-            "name": "Attach to Server",
-            "port": 9229,
-            "remoteRoot": "/srv",
-            "request": "attach",
-            "restart": true,
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "type": "pwa-node"
-        },
-        {
-            "address": "localhost",
-            "localRoot": "${workspaceFolder}",
-            "name": "Attach to Client",
-            "port": 9230,
-            "remoteRoot": "/srv",
-            "request": "attach",
-            "restart": true,
-            "skipFiles": [
-                "<node_internals>/**"
-            ],
-            "type": "pwa-node"
-        },
-    ]
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "address": "localhost",
+      "localRoot": "${workspaceFolder}",
+      "name": "Attach to Server",
+      "port": 9229,
+      "remoteRoot": "/srv",
+      "request": "attach",
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"],
+      "type": "pwa-node"
+    },
+    {
+      "address": "localhost",
+      "localRoot": "${workspaceFolder}",
+      "name": "Attach to Client",
+      "port": 9230,
+      "remoteRoot": "/srv",
+      "request": "attach",
+      "restart": true,
+      "skipFiles": ["<node_internals>/**"],
+      "type": "pwa-node"
+    }
+  ]
 }
