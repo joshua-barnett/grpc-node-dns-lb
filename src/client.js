@@ -15,21 +15,60 @@ const randomBoundedInt = (min, max) => Math.floor(Math.random() * max) + min
 const randomDelay = () =>
   timeout(randomBoundedInt(MIN_RANDOM_DELAY, MAX_RANDOM_DELAY))
 
+const PassThroughInterceptor = (options, nextCall) =>
+  new InterceptingCall(nextCall(options), {
+    start: (metadata, listener, next) => {
+      next(metadata, {
+        onReceiveMetadata: (metadata, next) => {
+          next(metadata)
+        },
+        onReceiveMessage: (message, next) => {
+          next(message)
+        },
+        onReceiveStatus: (status, next) => {
+          next(status)
+        }
+      })
+    },
+    sendMessage: (message, next) => {
+      next(message)
+    },
+    halfClose: next => {
+      next()
+    },
+    cancel: (message, next) => {
+      next()
+    }
+  })
+
 const GOAWAY_RECEIVED_DETAILS = 'GOAWAY received'
 
-// Based on: https://github.com/grpc/grpc-node/blob/grpc%401.24.x/packages/grpc-native-core/test/client_interceptors_test.js#L464-L529
-// attempted to mitigate some of the callback hell in that example.
-class GoawayRetryInterceptingCall extends grpc.InterceptingCall {
+const unpromisify = fn => async (...args) => {
+  const [next, ...params] = [args.pop(), ...args]
+  try {
+    const result = await fn(...params)
+    if (Array.isArray(result)) {
+      next(...result)
+    } else {
+      next(result)
+    }
+  } catch (error) {
+    next(error)
+  }
+}
+
+class RetryInterceptingCall extends grpc.InterceptingCall {
+  /**
+   * Create retry intercepting call.
+   *
+   * @param {object} options - The grpc call options.
+   * @param {number} options.maxRetries - The maximum number of retries.
+   * @param {grpc.InterceptingCall} nextCall - The next call in the chain.
+   */
   constructor (options, nextCall) {
     super(nextCall(options), {
-      sendMessage: (oldMessage, next) => {
-        const newMessage = this._sendMessage(oldMessage)
-        next(newMessage)
-      },
-      start: (metadata, _, next) => {
-        const listener = this._start(metadata)
-        next(metadata, listener)
-      }
+      start: unpromisify((...args) => this._start(...args)),
+      sendMessage: unpromisify((...args) => this._sendMessage(...args))
     })
     this._options = {
       maxRetries: 3,
@@ -38,59 +77,75 @@ class GoawayRetryInterceptingCall extends grpc.InterceptingCall {
     this._nextCall = nextCall
     this._savedMetadata = null
     this._savedSendMessage = null
-  }
-  _sendMessage (message) {
-    this._savedSendMessage = message
-    return this._savedSendMessage
+    this._receivedMessage = null
+    this._resolveMessage = null
   }
   _start (metadata) {
     this._savedMetadata = metadata
-    return {
-      onReceiveStatus: async (oldStatus, next) => {
-        try {
-          const newStatus = await this._onReceiveStatus(oldStatus)
-          next(newStatus)
-        } catch (error) {
-          next(error)
-        }
+    return [
+      metadata,
+      {
+        onReceiveMessage: unpromisify((...args) =>
+          this._onReceiveMessage(...args)
+        ),
+        onReceiveStatus: unpromisify((...args) =>
+          this._onReceiveStatus(...args)
+        )
       }
+    ]
+  }
+  _onReceiveMessage (message) {
+    // Store response message.
+    this._receivedMessage = message
+    // Create only one pending promise.
+    if (!this._resolveMessage) {
+      // Return the response message, pending the response status.
+      return new Promise(resolve => (this._resolveMessage = resolve))
     }
   }
   _onReceiveStatus (status, retries = 0) {
-    if (this._isRetryable(status, retries)) {
-      retries++
-      return this._retry(this._savedSendMessage, this._savedMetadata, retries)
+    // Assess whether the request should be retried.
+    if (this._shouldRetry(status, retries)) {
+      this._retry(retries)
+      // Create only one pending promise.
+      if (!this._resolveStatus) {
+        return new Promise(resolve => (this._resolveStatus = resolve))
+      }
+    } else {
+      this._resolveMessage(this._receivedMessage)
+      if (this._resolveStatus) {
+        this._resolveStatus(status)
+      } else {
+        return status
+      }
     }
-    return status
   }
-  _isRetryable ({ code, details }, retries) {
+  _shouldRetry (status, retries) {
+    // Only retry in "unavailable, goaway" race condition circumstances.
     return (
       retries <= this._options.maxRetries &&
-      code === grpc.status.UNAVAILABLE &&
-      details === GOAWAY_RECEIVED_DETAILS
+      status.code === grpc.status.UNAVAILABLE &&
+      status.details === GOAWAY_RECEIVED_DETAILS
     )
   }
-  _retry (message, metadata, retries) {
-    return new Promise((resolve, reject) => {
-      metadata.set('retries', retries.toString())
-      const newCall = this._nextCall(this._options)
-      newCall.start(metadata, {
-        onReceiveStatus: async (oldStatus, next) => {
-          try {
-            const newStatus = await this._onReceiveStatus(oldStatus, retries)
-            next(newStatus)
-            return resolve(newStatus)
-          } catch (error) {
-            next(error)
-            return reject(error)
-          }
-        }
-      })
-      newCall.sendMessage(message)
-      newCall.halfClose()
-    })
+  _retry (retries) {
+    retries++
+    this._savedMetadata.set('retries', retries.toString())
+    const newCall = this._nextCall(this._options)
+    const startParams = this._start(this._savedMetadata)
+    newCall.start(...startParams)
+    newCall.sendMessage(this._savedSendMessage)
+    newCall.halfClose()
+  }
+  _sendMessage (message) {
+    // Store the request message so it can be resent if required.
+    this._savedSendMessage = message
+    return message
   }
 }
+
+const RetryInterceptor = (options, nextCall) =>
+  new RetryInterceptingCall(options, nextCall)
 
 class Client {
   constructor (path, serialize, deserialze) {
@@ -110,13 +165,7 @@ class Client {
             }
           ]
         }),
-        interceptors: [
-          (options, nextCall) =>
-            new GoawayRetryInterceptingCall(
-              { ...options, maxRetries: 1 },
-              nextCall
-            )
-        ]
+        interceptors: [RetryInterceptor]
       }
     )
     this.waitForReady = promisify((...args) =>
@@ -126,21 +175,19 @@ class Client {
       this.grpcClient.makeUnaryRequest(...args)
     )
   }
-  async exec (body = {}, retries = 0) {
+  async exec (body, retries = 0) {
     try {
-      const { seq } = body
-      console.log(`${seq}: Sending request`)
+      console.log(`${body.seq}: Sending request`)
       const response = await this.makeUnaryRequest(
         this.path,
         this.serialize,
         this.deserialze,
         body
       )
-      console.log(`${seq}: Received response`)
+      console.log(`${response.seq}: Received response`)
       return response
     } catch (error) {
-      const { seq } = body
-      console.error(`${seq}: ${error.message}`)
+      console.error(`${body.seq}: Error`, { error })
     }
   }
   async run (repeat = REPEAT, delay = DELAY) {

@@ -34,8 +34,12 @@ class Server {
         Exec: async (call, callback) => {
           this.received++
           const { seq, delay, shutdown } = call.request
-          const retries = call.metadata.get('retries');
-          console.log(`${seq}: Received request ${retries.length ? `(Retries: ${retries})` : ''}`)
+          const retries = call.metadata.get('retries')
+          console.log(
+            `${seq}: Received request ${
+              retries.length ? `(Retries: ${retries})` : ''
+            }`
+          )
           if (seq <= this.lastSeq) {
             console.error('Repeated request', {
               seq,
