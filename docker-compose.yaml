@@ -1,25 +1,29 @@
-version: "3.9"
+version: '3.9'
 
 services:
   shell:
-    build: .
+    build:
+      context: .
+      target: dependencies
     volumes:
       - .:/srv
       - node_modules:/srv/node_modules
+    ports:
+      - 9229:9229
+      - 9230:9230
   server:
-    build: .
+    build:
+      context: .
+      target: artifact
     command: node . server
-    volumes:
-      - .:/srv
-      - node_modules:/srv/node_modules
   client:
-    build: .
+    build:
+      context: .
+      target: artifact
     command: node . client
     environment:
+      DELAY:
       SERVER_ADDRESS: dns:///server:50051
-    volumes:
-      - .:/srv
-      - node_modules:/srv/node_modules
 
 volumes:
   node_modules:
